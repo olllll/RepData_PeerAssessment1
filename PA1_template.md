@@ -146,12 +146,11 @@ A quick check on the differences between mean and median for each interval revea
 ```r
 medians<-with(activityData, tapply(steps, interval, FUN = function(x) median(x, na.rm = T)))
 means<-with(activityData, tapply(steps, interval, FUN = function(x) mean(x, na.rm = T)))
+differences<-means-medians
 plot(differences, type = "l")
 ```
 
-```
-## Error: object 'differences' not found
-```
+![plot of chunk check differences](figure/check differences.png) 
 
 Considering that the max value in the means is 206.1698, a maximum difference of `max(differences)` between the mean and the median seems to imply that there is a (strong) skew on the data. When data is skewed, median is usually a better indicator of the center of the distribution, since it is more robust to outliers, so we decide to impute based on that. With the data that we have, we can't do better.
 
