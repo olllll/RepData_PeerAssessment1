@@ -100,6 +100,7 @@ A quick check on the differences between mean and median for each interval revea
 ```{r check differences}
 medians<-with(activityData, tapply(steps, interval, FUN = function(x) median(x, na.rm = T)))
 means<-with(activityData, tapply(steps, interval, FUN = function(x) mean(x, na.rm = T)))
+differences<-means-medians
 plot(differences, type = "l")
 ```
 
