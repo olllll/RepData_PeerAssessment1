@@ -10,6 +10,11 @@ output:
 
 
 ```r
+opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+```r
 activityData<-read.csv("activity.csv", header = T)
 ```
 
@@ -56,19 +61,6 @@ library(ggplot2)
 library(dplyr)
 ```
 
-```
-## 
-## Attaching package: 'dplyr'
-## 
-## The following objects are masked from 'package:stats':
-## 
-##     filter, lag
-## 
-## The following objects are masked from 'package:base':
-## 
-##     intersect, setdiff, setequal, union
-```
-
 ## What is mean total number of steps taken per day?
 
 
@@ -91,11 +83,6 @@ Median steps taken by day is 10765.
 ```r
 bydayhist<-qplot(stepsbyday$total)
 bydayhist + geom_histogram()
-```
-
-```
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
 ```
 
 ![plot of chunk by day histogram](figure/by day histogram.png) 
@@ -194,15 +181,15 @@ impdayhist<-qplot(actImputedDay$total)
 impdayhist + geom_histogram()
 ```
 
-```
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-## stat_bin: binwidth defaulted to range/30. Use 'binwidth = x' to adjust this.
-```
-
 ![plot of chunk imputed histogram](figure/imputed histogram.png) 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+First we use the wday function (in the lubridate package) to classify the dates in weekdays and weekends.
+It is worth reminding that wday(date) returns an integer with values in the range 1:7, starting on sunday.
+
+Then we group the dataset by two variables, the weekday and the 5-minute interval, and get a mean for each possible combination of the two.
 
 
 
@@ -221,6 +208,8 @@ wdaydata$interval<-as.POSIXlt(wdaydata$interval, format = "%H%M")
 
 wdaydata$weekday<-as.factor(wdaydata$weekday)
 ```
+
+Then we pass those values to ggplot (the interval on the x axis, the computed mean on the y axis), using the weekday factor to facet the plot. It seems that there are different patterns for weekdays and weekends, and while, in the former, the steps seem to concentrate around some time ranges, in the latter we can see a much more regular distribution of steps taken through the day.
 
 
 ```r
