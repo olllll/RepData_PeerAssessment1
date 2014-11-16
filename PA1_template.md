@@ -8,10 +8,13 @@ output:
 
 ## Loading and preprocessing the data
 
+First, we set the global options for the report. We set that in a way that code will always be printed (echo), but messages and warnings thrown by the console (like the ones when you load a library) don't show.
 
 ```r
 opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
+
+Assuming data is already in the right directory, it can be read with a simple read.csv.
 
 
 ```r
@@ -51,25 +54,16 @@ sum(nchar(activityData$interval)!=4)
 ## [1] 0
 ```
 
-
-
-Now that we have reasonably clean data, we can start investigating.
-
-
-```r
-library(ggplot2)
-library(dplyr)
-```
+Now that we have "reasonably clean" data, we can start investigating.
 
 ## What is mean total number of steps taken per day?
 
 
 ```r
+library(dplyr)
 stepsbyday<-activityData %>% 
         group_by(date) %>% 
-        summarise (total = sum(steps), 
-                   mean = mean(steps, na.rm = T), 
-                   median = (median(steps, na.rm = T)))
+        summarise (total = sum(steps))
 options(scipen = 6)
 totalmean<-mean(stepsbyday$total, na.rm = T)
 totalmedian<-median(stepsbyday$total, na.rm = T)
@@ -81,8 +75,11 @@ Median steps taken by day is 10765.
 
 
 ```r
+library(ggplot2)
 bydayhist<-qplot(stepsbyday$total)
-bydayhist + geom_histogram()
+bydayhist + geom_histogram() + 
+        labs(x = "sum of steps by day",
+             title = "histogram of steps by day")
 ```
 
 ![plot of chunk by day histogram](figure/by day histogram.png) 
@@ -96,16 +93,31 @@ intervalsteps<- activityData %>%
         group_by(interval) %>%
         summarise(average = mean(steps, na.rm =T))
 
-#change format to something readable
-
-intervalsteps$interval<-as.POSIXlt(intervalsteps$interval, format = "%H%M")
+maxinterval<-filter(intervalsteps, average == max(average))
+#re-format the time interval to make it "pretty"
+split<-strsplit(maxinterval$interval, "")
+maxinterval$interval<-paste(split[[1]][1], 
+                            split[[1]][2], 
+                            ":", 
+                            split[[1]][3], 
+                            split[[1]][4], sep = "")
 ```
+
+The 5-minute interval with the maximum number of steps, averaged across all days, is 08:35, with 206.1698 steps.
+
+Now, let's plot the data.
 
 
 ```r
+#change format to something readable
+intervalsteps$interval<-as.POSIXlt(intervalsteps$interval, format = "%H%M")
+
+
 q2<-ggplot(intervalsteps, aes(x = interval, y = average))
 library(scales)
-q2+geom_line() + scale_x_datetime(labels = date_format("%H:%M"))
+q2+geom_line() + scale_x_datetime(labels = date_format("%H:%M")) +
+        labs(x = "5-min interval", y = "average steps",
+             title = "Avg steps by time interval")
 ```
 
 ![plot of chunk steps plot](figure/steps plot.png) 
@@ -113,7 +125,14 @@ q2+geom_line() + scale_x_datetime(labels = date_format("%H:%M"))
 
 ## Imputing missing values
 
-A quick check for getting to know how the na values are distributed.
+
+```r
+totalnas<-sum(is.na(activityData$steps))
+```
+
+There is a total of 2304 na values in the dataset.
+
+Here is a quick check to understand how the na values are distributed.
 
 
 ```r
@@ -131,15 +150,29 @@ This shows clearly that there are just two types of days: the ones on which ever
 A quick check on the differences between mean and median for each interval reveals that, in some of the intervals, differences are quite high between the 2 values:
 
 ```r
+#difference between mean and median for each averaged interval
 medians<-with(activityData, tapply(steps, interval, FUN = function(x) median(x, na.rm = T)))
 means<-with(activityData, tapply(steps, interval, FUN = function(x) mean(x, na.rm = T)))
 differences<-means-medians
-plot(differences, type = "l")
+
+#histogram of the distribution of the data
+distrInt<- activityData %>%
+        group_by(interval) %>%
+        summarise(total = sum(steps, na.rm = T))
+par(mfrow = c(1,2))
+plot(differences, 
+     type = "l", 
+     main = "(Mean-median) for each interval", 
+     xlab = "interval", 
+     ylab = "difference (mean-median)")
+hist(distrInt$total, 
+     main = "Total steps taken each interval", 
+     xlab = "total steps")
 ```
 
 ![plot of chunk check differences](figure/check differences.png) 
 
-Considering that the max value in the means is 206.1698, a maximum difference of 187.1698 between the mean and the median seems to imply that there is a (strong) skew on the data. When data is skewed, median is usually a better indicator of the center of the distribution, since it is more robust to outliers, so we decide to impute based on that. With the data that we have, we can't do better.
+Considering that the max value in the means is 206.1698, a maximum difference of 187.1698 between the mean and the median seems to imply that there is a skew on the data, which is showed on the histogram. When data is skewed, median is usually a better indicator of the center of the distribution, since it is more robust to outliers, so we decide to impute based on that.
 
 
 ```r
@@ -158,7 +191,7 @@ for (i in 1:length(nas)){
 }
 ```
 
-One obvious consequence of imputation using the median in this case is that, since it is (almost always) lower than the mean, general values for the distribution should have "dropped". Let's check with an histogram of steps by day (the same as the first question) but with the new data.
+One consequence of imputation using the median in this case is that, since it is (almost always) lower than the mean, general values for the distribution should have "dropped". Let's check with an histogram of steps by day (the same as the first question) but with the new data.
 
 
 ```r
@@ -173,12 +206,16 @@ The mean of the new dataset with the imputed data is 9503.8689 while the mean of
 
 The median of the imputed data is 10395 while the median of the original dataset before the imputation was 10765.
 
+Now here's a paradox: we wanted to impute according to the median for each interval because it was, arguably, the best indicator for the center. But in doing so, we have skewed the distribution by day. Another imputation method (maybe a more subtle one) would give different results.
+
 Now the histogram:
 
 
 ```r
 impdayhist<-qplot(actImputedDay$total)
-impdayhist + geom_histogram()
+impdayhist + geom_histogram() + 
+          labs(x = "sum of steps by day",
+             title = "Steps by day after imputation")
 ```
 
 ![plot of chunk imputed histogram](figure/imputed histogram.png) 
@@ -214,7 +251,10 @@ Then we pass those values to ggplot (the interval on the x axis, the computed me
 
 ```r
 graph<-ggplot(wdaydata, aes(x = interval, y = mean))
-graph + geom_line() + facet_grid(weekday~.) + scale_x_datetime(labels = date_format("%H:%M"))
+graph + geom_line() + facet_grid(weekday~.) + 
+        scale_x_datetime(labels = date_format("%H:%M")) +
+        labs(x = "time interval", y = "average steps",
+             title = "Avg steps by interval (weekday vs weekend)")
 ```
 
 ![plot of chunk weekday plot](figure/weekday plot.png) 
